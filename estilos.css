@@ -399,5 +399,9 @@ dialog p { margin-top: 10px; color: var(--tenue); font-size: 0.95rem; }
 
 /* menú en una línea con siete secciones */
 .menu a { white-space: nowrap; }
-@media (min-width: 861px) { .menu { gap: 14px; font-size: 0.9rem; } .cabecera-fila .boton-chico { white-space: nowrap; } }
-@media (min-width: 861px) and (max-width: 1100px) { .menu { overflow-x: auto; min-width: 0; } }
+@media (min-width: 861px) { .menu { gap: 0; min-width: 0; } .menu a { font-size: 0.9rem; padding: 8px 8px; } .cabecera-fila .boton-chico { white-space: nowrap; flex-shrink: 0; } }
+@media (min-width: 861px) and (max-width: 1180px) {
+  .cabecera-fila { flex-wrap: wrap; row-gap: 4px; padding-block: 8px; }
+  .menu { order: 3; width: 100%; margin-left: 0; overflow-x: auto; }
+  .cabecera-fila .boton-chico { margin-left: auto; }
+}
