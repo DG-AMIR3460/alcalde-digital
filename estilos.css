@@ -405,3 +405,5 @@ dialog p { margin-top: 10px; color: var(--tenue); font-size: 0.95rem; }
   .menu { order: 3; width: 100%; margin-left: 0; overflow-x: auto; }
   .cabecera-fila .boton-chico { margin-left: auto; }
 }
+
+@media (min-width: 861px) { .otros { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

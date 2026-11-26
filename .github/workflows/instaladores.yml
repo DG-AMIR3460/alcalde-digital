@@ -133,20 +133,10 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          repository: ${{ env.JUEGO }}
-          ref: ${{ inputs.commit }}
-          path: juego
-          persist-credentials: false
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           path: entrega
           merge-multiple: true
-      - name: Codigo fuente para otros sistemas y procesadores
-        run: |
-          git -C juego archive --format=zip --prefix=AlcaldeDigital/ -o "$PWD/entrega/AlcaldeDigital-codigo-fuente.zip" HEAD -- . ':!sitio_web' ':!empaquetado' ':!.github'
-          (cd entrega && sha256sum AlcaldeDigital-codigo-fuente.zip > SHA256-fuente.txt)
       - name: Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -157,7 +147,7 @@ jobs:
           cat ./SHA256-*.txt > SHA256.txt && rm ./SHA256-*.txt
           cat SHA256.txt
           esperados=(AlcaldeDigital-Setup-Windows.exe AlcaldeDigital-macOS-arm64.dmg AlcaldeDigital-macOS-x64.dmg
-                     AlcaldeDigital-Linux-x64.AppImage AlcaldeDigital-Linux-arm64.AppImage AlcaldeDigital-codigo-fuente.zip SHA256.txt)
+                     AlcaldeDigital-Linux-x64.AppImage AlcaldeDigital-Linux-arm64.AppImage SHA256.txt)
           test "$(ls -A | wc -l)" -eq "${#esperados[@]}"
           for f in "${esperados[@]}"; do test -f "$f"; done
-          gh release create "$VERSION" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --latest --title "Alcalde Digital $VERSION" --notes "Descargas de Alcalde Digital (juego en el commit $COMMIT de $JUEGO). Comprueba cada archivo con SHA256.txt." "${esperados[@]}"
+          gh release create "$VERSION" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --latest --title "Alcalde Digital $VERSION" --notes "Instaladores de Alcalde Digital. Comprueba cada archivo con SHA256.txt." "${esperados[@]}"
