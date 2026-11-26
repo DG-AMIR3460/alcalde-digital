@@ -127,7 +127,7 @@ kbd {
 /* ---------- hero ---------- */
 .hero { position: relative; overflow: hidden; border-bottom: var(--borde); background: var(--atardecer-1); }
 .hero-fondo {
-  position: absolute; inset: 0; background: url("img/viva-florece-plaza.jpg") center 40% / cover no-repeat; transform-origin: 60% 50%;
+  position: absolute; inset: 0; background: url("img/mundo-barrio.jpg") center 40% / cover no-repeat; transform-origin: 60% 50%;
 }
 .hero::after {
   content: ""; position: absolute; inset: 0;
@@ -371,3 +371,25 @@ dialog p { margin-top: 10px; color: var(--tenue); font-size: 0.95rem; }
   .marca-digital { display: none; }
   .boton-grande { font-size: 1.05rem; padding: 16px 18px; flex-wrap: wrap; }
 }
+
+/* ---------- elegir sistema y otros sistemas ---------- */
+.elige { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin-block: 22px; text-align: left; }
+.elige-so { background: var(--noche); color: var(--texto); border: var(--borde); border-radius: var(--radio); padding: 20px; box-shadow: var(--sombra); display: flex; flex-direction: column; gap: 12px; }
+.elige-so h3 { color: var(--amarillo); font-size: 1.5rem; }
+.elige-so .boton, .otros .boton { width: 100%; flex-wrap: wrap; justify-content: center; text-align: center; }
+.elige .recomendado { outline: 4px solid var(--cian); outline-offset: 3px; }
+.descarga .descarga-cabeza, .descarga .elige, .descarga .instala { position: relative; z-index: 2; }
+.descarga .instala { margin-bottom: 60px; }
+#elegir { width: min(760px, 94vw); }
+#elegir h2 { font-size: 1.8rem; }
+#elegir .elige-so { background: var(--panel); }
+.otros { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+.otros article { background: var(--panel); border: var(--borde); border-radius: var(--radio); padding: 22px; box-shadow: var(--sombra); display: flex; flex-direction: column; gap: 12px; }
+.otros h3 { color: var(--amarillo); }
+.otros .boton { margin-top: auto; }
+.otros code { overflow-wrap: anywhere; }
+.trio { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.trio img { border: var(--borde); border-radius: var(--radio); box-shadow: var(--sombra); cursor: zoom-in; }
+@media (max-width: 860px) { .elige, .otros, .trio { grid-template-columns: 1fr; } }
+
+.pend { background: var(--amarillo); color: var(--tinta); padding: 0 6px; border-radius: 4px; font-weight: 700; }

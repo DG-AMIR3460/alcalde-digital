@@ -40,17 +40,26 @@
     if (consultaFila.addEventListener) { consultaFila.addEventListener("change", orientar); }
   }
 
+  var plataforma = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || navigator.userAgent || "";
+  var esMovil = /android|iphone|ipad/i.test(navigator.userAgent);
+  var miSO = esMovil ? "" : (/mac/i.test(plataforma) ? "mac" : (/linux|x11/i.test(plataforma) ? "lin" : "win"));
   var listaSO = document.querySelector(".so");
   if (listaSO) {
     var so = pestanas(listaSO, null, false);
-    var plataforma = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || navigator.userAgent || "";
-    var esLinux = /linux|x11/i.test(plataforma) && !/android/i.test(navigator.userAgent);
-    var esMac = /mac/i.test(plataforma) && !/iphone|ipad/i.test(navigator.userAgent);
-    var id = esMac ? "so-mac" : (esLinux ? "so-lin" : "so-win");
-    var tab = document.getElementById(id);
-    var recomendado = document.getElementById(id === "so-mac" ? "dl-mac" : (id === "so-lin" ? "dl-lin" : "dl-win"));
-    if (recomendado) { recomendado.classList.add("recomendado"); }
+    var tab = document.getElementById("so-" + (miSO || "win"));
     if (tab) { so.elegir(tab, false); }
+    if (miSO) { document.querySelectorAll('[data-so="' + miSO + '"]').forEach(function (b) { b.classList.add("recomendado"); }); }
+  }
+
+  // ---- Botón «Descargar juego»: elegir sistema ----
+  var elegir = document.getElementById("elegir");
+  if (elegir && typeof elegir.showModal === "function") {
+    document.querySelectorAll("[data-descargar]").forEach(function (b) {
+      b.addEventListener("click", function (e) { e.preventDefault(); elegir.showModal(); });
+    });
+    elegir.addEventListener("click", function (e) {
+      if (e.target === elegir || (e.target.closest && e.target.closest("[data-cerrar]"))) { elegir.close(); }
+    });
   }
 
   // ---- Comparador de la ciudad ----
@@ -59,14 +68,6 @@
   var tapa = document.getElementById("comp-crisis");
   var base = document.getElementById("comp-florece");
   var linea = document.getElementById("comp-linea");
-  var PARES = {
-    fuente: { crisis: "img/viva-crisis-fuente.jpg", florece: "img/viva-florece-fuente.jpg",
-      altCrisis: "La fuente en crisis: cielo apagado, basura en el suelo y la plaza vacía",
-      altFlorece: "La fuente cuando la ciudad florece: banderines, flores y vecinos conversando" },
-    plaza: { crisis: "img/viva-crisis-plaza.jpg", florece: "img/viva-florece-plaza.jpg",
-      altCrisis: "La plaza del parque en crisis: papeles y basura, farolas apagadas y nadie en la plaza",
-      altFlorece: "La plaza del parque cuando la ciudad florece: banderines, flores y un corro de vecinos" }
-  };
   function poner(valor) {
     valor = Math.max(0, Math.min(100, valor));
     tapa.style.clipPath = "inset(0 " + (100 - valor) + "% 0 0)";
@@ -84,15 +85,6 @@
     marco.addEventListener("pointermove", function (e) { if (arrastrando) { desdePuntero(e); } });
     marco.addEventListener("pointerup", function () { arrastrando = false; });
     marco.addEventListener("pointercancel", function () { arrastrando = false; });
-    document.querySelectorAll("[data-par]").forEach(function (b) {
-      b.addEventListener("click", function () {
-        var par = PARES[b.getAttribute("data-par")];
-        if (!par) { return; }
-        tapa.src = par.crisis; tapa.alt = par.altCrisis;
-        base.src = par.florece; base.alt = par.altFlorece;
-        document.querySelectorAll("[data-par]").forEach(function (o) { o.setAttribute("aria-pressed", o === b ? "true" : "false"); });
-      });
-    });
     poner(50);
   }
 

@@ -3,3 +3,5 @@ img/raw/
 *.dmg
 *.exe
 *.AppImage
+.env*
+.vercel

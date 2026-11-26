@@ -15,7 +15,18 @@ permissions:
 env:
   JUEGO: SebastianBlanco430/Alcalde-Digital
 jobs:
+  validar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validar entradas
+        env:
+          COMMIT: ${{ inputs.commit }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          [[ "$COMMIT" =~ ^[0-9a-f]{40}$ ]] || { echo "commit no es un SHA completo"; exit 1; }
+          [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "version debe ser vX.Y.Z"; exit 1; }
   construir:
+    needs: validar
     strategy:
       fail-fast: false
       matrix:
@@ -23,8 +34,8 @@ jobs:
           - { os: windows-latest,   etiqueta: Windows-x64 }
           - { os: macos-latest,     etiqueta: macOS-arm64 }
           - { os: macos-15-intel,   etiqueta: macOS-x64 }
-          - { os: ubuntu-22.04,     etiqueta: Linux-x64,   appimage: x86_64,  sha: ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0 }
-          - { os: ubuntu-22.04-arm, etiqueta: Linux-arm64, appimage: aarch64, sha: f0837e7448a0c1e4e650a93bb3e85802546e60654ef287576f46c71c126a9158 }
+          - { os: ubuntu-22.04,     etiqueta: Linux-x64,   appimage: x86_64,  sha: ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0, runtime_sha: 2fca8b443c92510f1483a883f60061ad09b46b978b2631c807cd873a47ec260d }
+          - { os: ubuntu-22.04-arm, etiqueta: Linux-arm64, appimage: aarch64, sha: f0837e7448a0c1e4e650a93bb3e85802546e60654ef287576f46c71c126a9158, runtime_sha: 00cbdfcf917cc6c0ff6d3347d59e0ca1f7f45a6df1a428a0d6d8a78664d87444 }
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -88,8 +99,10 @@ jobs:
           python -c "import struct,zlib;w=h=64;raw=b''.join(b'\x00'+b'\xff\xd5\x2a'*w for _ in range(h));c=lambda t,d:struct.pack('>I',len(d))+t+d+struct.pack('>I',zlib.crc32(t+d));open('AppDir/alcalde.png','wb').write(b'\x89PNG\r\n\x1a\n'+c(b'IHDR',struct.pack('>IIBBBBB',w,h,8,2,0,0,0))+c(b'IDAT',zlib.compress(raw))+c(b'IEND',b''))"
           curl -fsSL -o appimagetool https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-${{ matrix.appimage }}.AppImage
           echo "${{ matrix.sha }}  appimagetool" | sha256sum -c -
+          curl -fsSL -o runtime https://github.com/AppImage/type2-runtime/releases/download/20251108/runtime-${{ matrix.appimage }}
+          echo "${{ matrix.runtime_sha }}  runtime" | sha256sum -c -
           chmod +x appimagetool
-          mkdir salida && ARCH=${{ matrix.appimage }} ./appimagetool --appimage-extract-and-run AppDir "salida/AlcaldeDigital-${{ matrix.etiqueta }}.AppImage"
+          mkdir salida && ARCH=${{ matrix.appimage }} ./appimagetool --appimage-extract-and-run --runtime-file runtime AppDir "salida/AlcaldeDigital-${{ matrix.etiqueta }}.AppImage"
       - name: Prueba de arranque (Linux, pantalla virtual)
         if: runner.os == 'Linux'
         run: |
@@ -141,6 +154,10 @@ jobs:
           COMMIT: ${{ inputs.commit }}
         run: |
           cd entrega
-          cat SHA256-*.txt > SHA256.txt && rm SHA256-*.txt
+          cat ./SHA256-*.txt > SHA256.txt && rm ./SHA256-*.txt
           cat SHA256.txt
-          gh release create "$VERSION" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --latest --title "Alcalde Digital $VERSION" --notes "Descargas de Alcalde Digital (juego en el commit $COMMIT de $JUEGO). Comprueba cada archivo con SHA256.txt." *
+          esperados=(AlcaldeDigital-Setup-Windows.exe AlcaldeDigital-macOS-arm64.dmg AlcaldeDigital-macOS-x64.dmg
+                     AlcaldeDigital-Linux-x64.AppImage AlcaldeDigital-Linux-arm64.AppImage AlcaldeDigital-codigo-fuente.zip SHA256.txt)
+          test "$(ls -A | wc -l)" -eq "${#esperados[@]}"
+          for f in "${esperados[@]}"; do test -f "$f"; done
+          gh release create "$VERSION" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --latest --title "Alcalde Digital $VERSION" --notes "Descargas de Alcalde Digital (juego en el commit $COMMIT de $JUEGO). Comprueba cada archivo con SHA256.txt." "${esperados[@]}"
