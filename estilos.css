@@ -393,3 +393,6 @@ dialog p { margin-top: 10px; color: var(--tenue); font-size: 0.95rem; }
 @media (max-width: 860px) { .elige, .otros, .trio { grid-template-columns: 1fr; } }
 
 .pend { background: var(--amarillo); color: var(--tinta); padding: 0 6px; border-radius: 4px; font-weight: 700; }
+
+.creadores { list-style: none; margin: 0 auto 18px; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 16px; }
+.creadores li { background: var(--panel); border: var(--borde); border-radius: var(--radio); box-shadow: var(--sombra); padding: 16px 24px; font-weight: 700; font-size: 1.15rem; color: var(--amarillo); }
