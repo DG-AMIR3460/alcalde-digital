@@ -1,0 +1,5 @@
+.DS_Store
+img/raw/
+*.dmg
+*.exe
+*.AppImage

@@ -1,0 +1,146 @@
+# Construye las descargas de Alcalde Digital a partir del repositorio público del juego (en un commit fijado)
+# y las publica como Release de este repositorio. No modifica el repositorio del juego.
+name: instaladores
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: "SHA completo del commit del juego"
+        required: true
+      version:
+        description: "Etiqueta de la Release (p. ej. v1.0.0)"
+        required: true
+permissions:
+  contents: read
+env:
+  JUEGO: SebastianBlanco430/Alcalde-Digital
+jobs:
+  construir:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest,   etiqueta: Windows-x64 }
+          - { os: macos-latest,     etiqueta: macOS-arm64 }
+          - { os: macos-15-intel,   etiqueta: macOS-x64 }
+          - { os: ubuntu-22.04,     etiqueta: Linux-x64,   appimage: x86_64,  sha: ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0 }
+          - { os: ubuntu-22.04-arm, etiqueta: Linux-arm64, appimage: aarch64, sha: f0837e7448a0c1e4e650a93bb3e85802546e60654ef287576f46c71c126a9158 }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: ${{ env.JUEGO }}
+          ref: ${{ inputs.commit }}
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.14"
+      - name: Dependencias
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt "pyinstaller==6.22.3"
+      - name: Dependencias del sistema (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libgl1 libgl1-mesa-dri libopenal1 libx11-6 libfuse2 xvfb
+      - name: Construir (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          ALCALDE_RAIZ="$PWD" ALCALDE_MODO=onedir pyinstaller --noconfirm --distpath dist --workpath work empaquetado/alcalde.spec
+          test -f dist/AlcaldeDigital/AlcaldeDigital.exe
+      - name: Compilar instalador (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          # El runner ya trae Inno Setup 6; solo se instala si faltara.
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup --no-progress -y }
+          if (-not (Test-Path $iscc)) { throw "No se encontro ISCC.exe" }
+          New-Item -ItemType Directory -Force salida | Out-Null
+          & $iscc "/DOrigen=$PWD\dist\AlcaldeDigital" "/DSalida=$PWD\salida" "/DVersion=$($env:VERSION.TrimStart('v'))" empaquetado\instalador_windows.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC fallo" }
+      - name: Probar instalacion y desinstalacion silenciosas (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $dir = Join-Path $env:RUNNER_TEMP 'AD-prueba'
+          $p = Start-Process -FilePath "$PWD\salida\AlcaldeDigital-Setup-Windows.exe" -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/DIR=$dir" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "El instalador termino con codigo $($p.ExitCode)" }
+          if (-not (Test-Path "$dir\AlcaldeDigital.exe")) { throw "Falta AlcaldeDigital.exe tras instalar" }
+          $u = Start-Process -FilePath "$dir\unins000.exe" -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART" -Wait -PassThru
+          if ($u.ExitCode -ne 0) { throw "El desinstalador termino con codigo $($u.ExitCode)" }
+      - name: Construir (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          PYTHON=python SALIDA="$PWD/salida" bash empaquetado/construir_ejecutable.sh
+          mv salida/AlcaldeDigital-macOS-*.dmg "salida/AlcaldeDigital-${{ matrix.etiqueta }}.dmg"
+          rm -f salida/*.sha256
+      - name: Construir (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          ALCALDE_RAIZ="$PWD" ALCALDE_MODO=onedir pyinstaller --noconfirm --distpath dist --workpath work empaquetado/alcalde.spec
+          mkdir -p AppDir/usr/bin && cp -R dist/AlcaldeDigital/. AppDir/usr/bin/
+          printf '#!/bin/sh\nHERE="$(dirname "$(readlink -f "$0")")"\nexec "$HERE/usr/bin/AlcaldeDigital" "$@"\n' > AppDir/AppRun && chmod +x AppDir/AppRun
+          printf '[Desktop Entry]\nType=Application\nName=Alcalde Digital\nExec=AlcaldeDigital\nIcon=alcalde\nCategories=Game;\n' > AppDir/alcalde.desktop
+          python -c "import struct,zlib;w=h=64;raw=b''.join(b'\x00'+b'\xff\xd5\x2a'*w for _ in range(h));c=lambda t,d:struct.pack('>I',len(d))+t+d+struct.pack('>I',zlib.crc32(t+d));open('AppDir/alcalde.png','wb').write(b'\x89PNG\r\n\x1a\n'+c(b'IHDR',struct.pack('>IIBBBBB',w,h,8,2,0,0,0))+c(b'IDAT',zlib.compress(raw))+c(b'IEND',b''))"
+          curl -fsSL -o appimagetool https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-${{ matrix.appimage }}.AppImage
+          echo "${{ matrix.sha }}  appimagetool" | sha256sum -c -
+          chmod +x appimagetool
+          mkdir salida && ARCH=${{ matrix.appimage }} ./appimagetool --appimage-extract-and-run AppDir "salida/AlcaldeDigital-${{ matrix.etiqueta }}.AppImage"
+      - name: Prueba de arranque (Linux, pantalla virtual)
+        if: runner.os == 'Linux'
+        run: |
+          chmod +x salida/*.AppImage
+          set +e
+          ALCALDE_SIN_AUDIO=1 xvfb-run -a timeout 90 salida/*.AppImage --appimage-extract-and-run > arranque.log 2>&1
+          codigo=$?
+          set -e
+          tail -40 arranque.log
+          # 124 = seguía abierto al cumplirse el tiempo
+          test "$codigo" = 124
+          ! grep -q "Traceback" arranque.log
+      - name: SHA-256
+        shell: bash
+        run: |
+          cd salida
+          for f in *; do if command -v sha256sum >/dev/null; then sha256sum "$f"; else shasum -a 256 "$f"; fi; done | sed 's/\*//' > ../SHA256-${{ matrix.etiqueta }}.txt
+          mv ../SHA256-${{ matrix.etiqueta }}.txt .
+          cat SHA256-*.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: AlcaldeDigital-${{ matrix.etiqueta }}
+          path: salida/*
+          if-no-files-found: error
+  publicar:
+    needs: construir
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: ${{ env.JUEGO }}
+          ref: ${{ inputs.commit }}
+          path: juego
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          path: entrega
+          merge-multiple: true
+      - name: Codigo fuente para otros sistemas y procesadores
+        run: |
+          git -C juego archive --format=zip --prefix=AlcaldeDigital/ -o "$PWD/entrega/AlcaldeDigital-codigo-fuente.zip" HEAD -- . ':!sitio_web' ':!empaquetado' ':!.github'
+          (cd entrega && sha256sum AlcaldeDigital-codigo-fuente.zip > SHA256-fuente.txt)
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+          COMMIT: ${{ inputs.commit }}
+        run: |
+          cd entrega
+          cat SHA256-*.txt > SHA256.txt && rm SHA256-*.txt
+          cat SHA256.txt
+          gh release create "$VERSION" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --latest --title "Alcalde Digital $VERSION" --notes "Descargas de Alcalde Digital (juego en el commit $COMMIT de $JUEGO). Comprueba cada archivo con SHA256.txt." *
